@@ -13,6 +13,7 @@ import com.jcaa.usersmanagement.application.service.GetAllUsersService;
 import com.jcaa.usersmanagement.application.service.GetUserByIdService;
 import com.jcaa.usersmanagement.application.service.LoginService;
 import com.jcaa.usersmanagement.application.service.UpdateUserService;
+import com.jcaa.usersmanagement.infrastructure.adapter.email.ClasspathEmailTemplateAdapter;
 import com.jcaa.usersmanagement.infrastructure.adapter.email.JavaMailEmailSenderAdapter;
 import com.jcaa.usersmanagement.infrastructure.adapter.email.SmtpConfig;
 import com.jcaa.usersmanagement.infrastructure.adapter.persistence.config.DatabaseConfig;
@@ -62,8 +63,11 @@ public final class DependencyContainer {
     userRepository.init();
 
     final JavaMailEmailSenderAdapter emailSender =
-        new JavaMailEmailSenderAdapter(buildSmtpConfig(properties));
-    final EmailNotificationService emailNotification = new EmailNotificationService(emailSender);
+      new JavaMailEmailSenderAdapter(buildSmtpConfig(properties));
+    final ClasspathEmailTemplateAdapter templateAdapter =
+      new ClasspathEmailTemplateAdapter(properties);
+    final EmailNotificationService emailNotification =
+      new EmailNotificationService(emailSender, templateAdapter);
 
     // Construir Validator para las validaciones en la capa de aplicación
     final Validator validator = ValidatorProvider.buildValidator();

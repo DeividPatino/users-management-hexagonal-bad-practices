@@ -1,16 +1,13 @@
 package com.jcaa.usersmanagement.application.service;
 
 import com.jcaa.usersmanagement.application.port.out.EmailSenderPort;
+import com.jcaa.usersmanagement.application.port.out.EmailTemplatePort;
 import com.jcaa.usersmanagement.domain.exception.EmailSenderException;
 import com.jcaa.usersmanagement.domain.model.EmailDestinationModel;
 import com.jcaa.usersmanagement.domain.model.UserModel;
-import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.java.Log;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.logging.Level;
 
@@ -29,6 +26,7 @@ public final class EmailNotificationService {
   private static final String TOKEN_STATUS   = "status";
 
   private final EmailSenderPort emailSenderPort;
+  private final EmailTemplatePort emailTemplatePort;
 
   public void notifyUserCreated(final UserModel user, final String plainPassword) {
     // Clean Code - Regla 25 (claridad sobre ingenio) y Regla 26 (evitar sobrecompactación):
@@ -44,7 +42,7 @@ public final class EmailNotificationService {
     // Clean Code - Regla 11 (evitar duplicación): la construcción de tokens del mapa
     // es idéntica a la de notifyUserUpdated — debería centralizarse.
     sendOrLog(buildDestination(user, SUBJECT_CREATED,
-        renderTemplate(loadTemplate("user-created.html"),
+      renderTemplate(emailTemplatePort.loadTemplate("user-created.html"),
             Map.of(TOKEN_NAME, user.getName().value(), TOKEN_EMAIL, user.getEmail().value(),
                 TOKEN_PASSWORD, plainPassword, TOKEN_ROLE, user.getRole().name()))));
   }
@@ -55,7 +53,7 @@ public final class EmailNotificationService {
     // Esta lógica de orquestación debería extraerse a un método genérico privado.
     // Clean Code - Regla 25 y 26: misma sobrecompactación que arriba.
     sendOrLog(buildDestination(user, SUBJECT_UPDATED,
-        renderTemplate(loadTemplate("user-updated.html"),
+      renderTemplate(emailTemplatePort.loadTemplate("user-updated.html"),
             Map.of(TOKEN_NAME, user.getName().value(), TOKEN_EMAIL, user.getEmail().value(),
                 TOKEN_ROLE, user.getRole().name(), TOKEN_STATUS, user.getStatus().name()))));
   }
@@ -79,23 +77,6 @@ public final class EmailNotificationService {
       final UserModel user, final String subject, final String body) {
     return new EmailDestinationModel(
         user.getEmail().value(), user.getName().value(), subject, body);
-  }
-
-  private String loadTemplate(final String templateName) {
-    final String path = "/templates/" + templateName;
-    try (InputStream inputStream = openResourceStream(path)) {
-      if (Objects.isNull(inputStream)) {
-        throw EmailSenderException.becauseSendFailed(
-            new IllegalStateException("Template not found: " + path));
-      }
-      return new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
-    } catch (final IOException ioException) {
-      throw EmailSenderException.becauseSendFailed(ioException);
-    }
-  }
-
-  InputStream openResourceStream(final String path) {
-    return getClass().getResourceAsStream(path);
   }
 
   // VIOLACIÓN Regla 4: método privado que no usa estado de instancia (no usa this ni campos)
