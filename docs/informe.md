@@ -32,6 +32,12 @@ Breve descripcion de la regla y su objetivo.
 -   Resumen del problema: El `UserController` (infraestructura) creaba `Commands` de la capa de aplicación (`CreateUserCommand`, etc.) directamente con `new`, acoplando el entrypoint a los detalles de construcción de la capa de aplicación.
 -   Impacto: Acoplamiento fuerte entre capas. Si el constructor de un `Command` cambia, el controlador se rompe. La responsabilidad de mapeo estaba fugada en el controlador.
 
+**Violacion detectada 5: Acoplamiento del Contenedor de Dependencias con la implementación del Repositorio**
+
+-   Ubicacion del codigo: `src/main/java/com/jcaa/usersmanagement/infrastructure/config/DependencyContainer.java`
+-   Resumen del problema: El `DependencyContainer` llamaba a un método `init()` que solo existía en la clase concreta `UserRepositoryMySQL`. Esto acopla el contenedor a una implementación específica, en lugar de depender solo de las interfaces (puertos).
+-   Impacto: Impide la intercambiabilidad de los adaptadores (por ejemplo, usar un repositorio en memoria para tests) y crea una dependencia temporal frágil (el objeto debe ser inicializado antes de usarse).
+
 **Evidencia**
 
 ```java
