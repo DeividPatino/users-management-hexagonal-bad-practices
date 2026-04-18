@@ -68,21 +68,6 @@ public final class UserRepositoryMySQL
 
   private final Connection connection;
 
-  // Clean Code - Regla 19 (temporal coupling): se agrega un flag de inicialización.
-  // El consumidor DEBE llamar a init() antes de usar el repositorio, pero el diseño
-  // no lo hace evidente ni lo encapsula — se llama a métodos en orden implícito frágil.
-  // Si alguien usa el repositorio sin llamar init() el comportamiento es impredecible.
-  private boolean initialized = false;
-
-  // Clean Code - Regla 19: si el orden init() → operaciones es obligatorio, el diseño
-  // debería proteger al consumidor encapsulando ese orden. Ahora es fácil usarlo mal:
-  //   service.init();
-  //   service.load();
-  //   service.process(); // ← ¿qué pasa si alguien llama esto sin init() primero?
-  public void init() {
-    this.initialized = true;
-  }
-
   @Override
   public UserModel save(final UserModel user) {
     // Clean Code - Regla 10: comentarios redundantes que repiten lo que ya dice el código.

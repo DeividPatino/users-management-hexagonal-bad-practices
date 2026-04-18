@@ -20,25 +20,35 @@ Breve descripcion de la regla y su objetivo.
 - Resumen del problema: El servicio de aplicación `CreateUserService` dependía de `UserValidationUtils` para validar reglas de negocio (ej. formato de email), en lugar de que el dominio se autovalidara.
 - Impacto: Acopla la capa de aplicación a una implementación concreta, saca la lógica de negocio fuera del dominio y reduce la encapsulación.
 
+**Violacion detectada 3: Acoplamiento del Entrypoint con la construcción de Commands de aplicación**
+
+- Ubicacion del codigo: `src/main/java/com/jcaa/usersmanagement/infrastructure/entrypoint/desktop/controller/UserController.java`
+- Resumen del problema: El `UserController` (infraestructura) creaba `Commands` de la capa de aplicación (`CreateUserCommand`, etc.) directamente con `new`, acoplando el entrypoint a los detalles de construcción de la capa de aplicación.
+- Impacto: Acoplamiento fuerte entre capas. Si el constructor de un `Command` cambia, el controlador se rompe. La responsabilidad de mapeo estaba fugada en el controlador.
+
+**Violacion detectada 4: Acoplamiento del Entrypoint con la construcción de Commands de aplicación**
+
+-   Ubicacion del codigo: `src/main/java/com/jcaa/usersmanagement/infrastructure/entrypoint/desktop/controller/UserController.java`
+-   Resumen del problema: El `UserController` (infraestructura) creaba `Commands` de la capa de aplicación (`CreateUserCommand`, etc.) directamente con `new`, acoplando el entrypoint a los detalles de construcción de la capa de aplicación.
+-   Impacto: Acoplamiento fuerte entre capas. Si el constructor de un `Command` cambia, el controlador se rompe. La responsabilidad de mapeo estaba fugada en el controlador.
+
 **Evidencia**
 
 ```java
-import com.jcaa.usersmanagement.application.service.UserValidationUtils;
-
-public class CreateUserService implements CreateUserUseCase {
-    public UserModel createUser(final CreateUserCommand command) {
-        if (!UserValidationUtils.isValidEmail(command.email())) {
-            throw new IllegalArgumentException("Invalid email format");
-        }
-        // ...
-    }
+// En UserController.java
+public UserResponse createUser(final CreateUserRequest request) {
+    // ...
+    final var command = new CreateUserCommand(
+        request.id(), request.name(), request.email(), request.password(), request.role());
+    final var user = createUserUseCase.execute(command);
+    // ...
 }
 ```
 
 **Solucion propuesta**
 
-- Cambio recomendado: Eliminar la clase `UserValidationUtils` y mover toda la lógica de validación a los constructores de los Value Objects del dominio (`UserEmail`, `UserName`, etc.).
-- Capa responsable del cambio: Dominio (Value Objects) y Aplicación (eliminar la dependencia).
+-   Cambio recomendado: Delegar la creación de `Commands` a la clase `UserDesktopMapper` dentro de la misma capa de `entrypoint`. El controlador ahora invoca al mapper, que es el único que conoce los detalles de construcción.
+-   Capa responsable del cambio: Infraestructura (entrypoint).
 
 **Estado**
 
