@@ -273,4 +273,90 @@ private void sendOrLog(final EmailDestinationModel destination) {
 
 -   Resuelto
 
+### Violación 7: Mutabilidad en Modelos de Dominio
+
+**Ubicacion del codigo**
+
+-   `src/main/java/com/jcaa/usersmanagement/domain/model/UserModel.java`
+
+**Resumen del problema**
+
+-   La clase `UserModel`, el objeto central del dominio, estaba anotada con `@Data` de Lombok. Esta anotación genera `setters` públicos para todos los campos, convirtiendo al modelo en un objeto **mutable**.
+
+**Impacto**
+
+-   **Ruptura de la encapsulación**: Cualquier capa, incluida la de infraestructura, podía modificar el estado de un objeto `UserModel` directamente (ej. `user.setStatus(...)`), saltándose por completo las reglas y validaciones del dominio.
+-   **Estado impredecible**: Al ser mutable, es muy difícil rastrear quién y cuándo se modifica el estado de un objeto, lo que conduce a errores complejos y comportamientos inesperados. Un modelo de dominio debe ser una representación consistente y protegida de su estado.
+
+**Evidencia (Antes)**
+
+```java
+// En UserModel.java (antes del refactor)
+@Data
+@AllArgsConstructor
+public class UserModel {
+  UserId id;
+  UserName name;
+  // ... y el resto de campos no finales
+}
+```
+
+**Solucion propuesta**
+
+-   **Cambio recomendado**: Se reemplazó la anotación `@Data` por `@Value`. `@Value` es una anotación de Lombok que crea una clase inmutable: todos los campos se vuelven `private` y `final`, y no se generan `setters`. Esto garantiza que una vez que se crea un objeto `UserModel`, su estado no puede ser alterado.
+-   **Capa responsable del cambio**: `domain`.
+
+**Estado**
+
+-   Resuelto
+
+### Violación 8: Parámetro de control booleano (Boolean Flag)
+
+**Ubicacion del codigo**
+
+-   `src/main/java/com/jcaa/usersmanagement/application/service/UpdateUserService.java`
+
+**Resumen del problema**
+
+-   El método `notifyIfRequired(UserModel user, boolean notify)` utilizaba un parámetro booleano (`notify`) para decidir si debía enviar una notificación por correo o simplemente registrar un mensaje en el log.
+
+**Impacto**
+
+-   **Violación del Principio de Responsabilidad Única (SRP)**: El método tenía dos responsabilidades distintas (notificar y registrar silenciosamente) y el booleano actuaba como un interruptor para elegir entre ellas.
+-   **Reduce la legibilidad**: Quien lee el código en el punto de llamada, como `notifyIfRequired(updatedUser, true)`, no sabe lo que `true` significa sin navegar a la definición del método. El código no se auto-documenta.
+-   **Oculta efectos secundarios**: El nombre del método (`notifyIfRequired`) era engañoso. No dejaba claro que cuando el booleano es `false`, se produce un efecto secundario diferente (escribir en el log) en lugar de no hacer nada.
+
+**Evidencia (Antes)**
+
+```java
+// En UpdateUserService.java (antes del refactor)
+@Override
+public UserModel execute(final UpdateUserCommand command) {
+  // ... código de actualización ...
+
+  // El 'true' es un "boolean flag" que controla el comportamiento
+  notifyIfRequired(updatedUser, true);
+
+  return updatedUser;
+}
+
+private void notifyIfRequired(final UserModel user, final boolean notify) {
+  if (notify) {
+    emailNotificationService.notifyUserUpdated(user);
+  } else {
+    // Efecto secundario oculto cuando notify = false
+    log.info("Actualización silenciosa para usuario: " + user.getId().value());
+  }
+}
+```
+
+**Solucion propuesta**
+
+-   **Cambio recomendado**: Se eliminó el método `notifyIfRequired` y se crearon dos métodos con nombres explícitos: `notifyUserUpdated` y `logSilentUpdate`. La llamada en el método `execute` se cambió a `notifyUserUpdated(updatedUser)`, haciendo la intención clara y directa.
+-   **Capa responsable del cambio**: `application`.
+
+**Estado**
+
+-   Resuelto
+
 ---
