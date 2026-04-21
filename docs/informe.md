@@ -183,4 +183,43 @@ public void notifyUserUpdated(final UserModel user) {
 
 -   Resuelto
 
+### Violación 5: Uso de Parámetros Booleanos de Control (Flags)
+
+**Ubicacion del codigo**
+
+-   `src/main/java/com/jcaa/usersmanagement/application/service/EmailNotificationService.java`
+
+**Resumen del problema**
+
+-   El método `sendNotificationWithFlag` aceptaba un parámetro booleano (`includePassword`) que actuaba como un "interruptor" para cambiar completamente el comportamiento del método, decidiendo si se notificaba una creación o una actualización.
+
+**Impacto**
+
+-   **Baja legibilidad**: Una llamada como `sendNotificationWithFlag(user, true, password)` es ambigua. No es inmediatamente obvio lo que `true` significa en este contexto.
+-   **Múltiples responsabilidades**: La existencia del flag indicaba que el método tenía dos responsabilidades distintas (notificar creación y notificar actualización), violando el Principio de Responsabilidad Única.
+-   **Contrato opaco**: El booleano crea un contrato menos explícito. Es preferible tener métodos con nombres que describan claramente su única función.
+
+**Evidencia (Antes)**
+
+```java
+// En EmailNotificationService.java (antes del refactor)
+public void sendNotificationWithFlag(
+    final UserModel user, final boolean includePassword, final String plainPassword) {
+  if (includePassword) {
+    notifyUserCreated(user, plainPassword);
+  } else {
+    notifyUserUpdated(user);
+  }
+}
+```
+
+**Solucion propuesta**
+
+-   **Cambio recomendado**: Se eliminó por completo el método `sendNotificationWithFlag`. Esto obliga a los llamadores a utilizar los métodos existentes, `notifyUserCreated` y `notifyUserUpdated`, que son más explícitos y tienen una única responsabilidad.
+-   **Capa responsable del cambio**: `application`.
+
+**Estado**
+
+-   Resuelto
+
 ---
