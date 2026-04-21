@@ -6,8 +6,7 @@ import com.jcaa.usersmanagement.domain.valueobject.UserEmail;
 import com.jcaa.usersmanagement.domain.valueobject.UserId;
 import com.jcaa.usersmanagement.domain.valueobject.UserName;
 import com.jcaa.usersmanagement.domain.valueobject.UserPassword;
-import lombok.AllArgsConstructor;
-import lombok.Data;
+import lombok.Value;
 
 // Clean Code - Regla 15 (inmutabilidad como preferencia de diseño):
 // Se cambió @Value por @Data + @AllArgsConstructor, lo que expone setters públicos
@@ -17,10 +16,8 @@ import lombok.Data;
 // Con @Value todos los campos serían final y no habría setters.
 // Con @Data + @AllArgsConstructor cualquiera puede hacer userModel.setStatus(BLOCKED)
 // desde fuera del dominio, rompiendo el encapsulamiento.
-@Data
-@AllArgsConstructor
+@Value
 public class UserModel {
-
   UserId id;
   UserName name;
   UserEmail email;
