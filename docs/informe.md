@@ -38,6 +38,14 @@ Breve descripcion de la regla y su objetivo.
 -   Resumen del problema: El `DependencyContainer` llamaba a un método `init()` que solo existía en la clase concreta `UserRepositoryMySQL`. Esto acopla el contenedor a una implementación específica, en lugar de depender solo de las interfaces (puertos).
 -   Impacto: Impide la intercambiabilidad de los adaptadores (por ejemplo, usar un repositorio en memoria para tests) y crea una dependencia temporal frágil (el objeto debe ser inicializado antes de usarse).
 
+**Violacion detectada 6: Nombre de Método Engañoso y Efectos Secundarios Ocultos**
+
+-   Ubicacion del codigo: `src/main/java/com/jcaa/usersmanagement/application/service/EmailNotificationService.java`
+-   Resumen del problema: El método privado `sendOrLog` tenía un nombre que no describía fielmente su comportamiento. Prometía "enviar o loguear", pero en realidad:
+    1.  En caso de éxito, solo enviaba, no logueaba.
+    2.  En caso de fallo, logueaba Y además re-lanzaba la excepción, un efecto secundario importante no comunicado en el nombre.
+-   Impacto: Código engañoso. El nombre del método creaba una expectativa incorrecta en el lector sobre su funcionamiento. Violación del Principio de Menor Sorpresa. El comportamiento de re-lanzar la excepción era un efecto secundario no evidente a partir del nombre, lo que puede llevar a un manejo de errores incorrecto por parte de quien lo usa.
+
 **Evidencia**
 
 ```java
@@ -216,6 +224,49 @@ public void sendNotificationWithFlag(
 **Solucion propuesta**
 
 -   **Cambio recomendado**: Se eliminó por completo el método `sendNotificationWithFlag`. Esto obliga a los llamadores a utilizar los métodos existentes, `notifyUserCreated` y `notifyUserUpdated`, que son más explícitos y tienen una única responsabilidad.
+-   **Capa responsable del cambio**: `application`.
+
+**Estado**
+
+-   Resuelto
+
+### Violación 6: Nombre de Método Engañoso y Efectos Secundarios Ocultos
+
+**Ubicacion del codigo**
+
+-   `src/main/java/com/jcaa/usersmanagement/application/service/EmailNotificationService.java`
+
+**Resumen del problema**
+
+-   El método privado `sendOrLog` tenía un nombre que no describía fielmente su comportamiento. Prometía "enviar o loguear", pero en realidad:
+    1.  En caso de éxito, solo enviaba, no logueaba.
+    2.  En caso de fallo, logueaba Y además re-lanzaba la excepción, un efecto secundario importante no comunicado en el nombre.
+
+**Impacto**
+
+-   **Código engañoso**: El nombre del método creaba una expectativa incorrecta en el lector sobre su funcionamiento.
+-   **Violación del Principio de Menor Sorpresa**: El comportamiento de re-lanzar la excepción era un efecto secundario no evidente a partir del nombre, lo que puede llevar a un manejo de errores incorrecto por parte de quien lo usa.
+
+**Evidencia (Antes)**
+
+```java
+// En EmailNotificationService.java (antes del refactor)
+private void sendOrLog(final EmailDestinationModel destination) {
+  try {
+    emailSenderPort.send(destination);
+  } catch (final EmailSenderException senderException) {
+    log.log(
+        Level.WARNING,
+        "[EmailNotificationService] No se pudo enviar correo a: {0}. Causa: {1}",
+        new Object[] {destination.getDestinationEmail(), senderException.getMessage()});
+    throw senderException;
+  }
+}
+```
+
+**Solucion propuesta**
+
+-   **Cambio recomendado**: Se renombró el método a `sendEmailAndLogFailure`. Este nombre es más largo pero mucho más preciso: describe claramente que la acción principal es enviar un email y que el log solo ocurre en caso de fallo.
 -   **Capa responsable del cambio**: `application`.
 
 **Estado**

@@ -49,7 +49,7 @@ public final class EmailNotificationService {
     final String template = emailTemplatePort.loadTemplate(templateName);
     final String body = renderTemplate(template, tokens);
     final EmailDestinationModel destination = buildDestination(user, subject, body);
-    sendOrLog(destination);
+    sendEmailAndLogFailure(destination);
   }
 
   private Map<String, String> baseTokens(final UserModel user) {
@@ -77,15 +77,8 @@ public final class EmailNotificationService {
     return result;
   }
 
-  // Clean Code - Regla 7 (evitar efectos secundarios ocultos):
-  // El nombre "sendOrLog" promete dos cosas (enviar o loguear), pero ninguna de las
-  // dos describe el comportamiento real completo: en el flujo exitoso NO loguea nada,
-  // y en el fallido loguea Y re-lanza la excepción.
-  // Los llamadores (notifyUserCreated, notifyUserUpdated) creen que solo "envían un correo",
-  // pero en realidad también producen un log de advertencia de forma inesperada.
-  // La regla dice: una función no debe realizar acciones inesperadas además de lo que
-  // su nombre promete.
-  private void sendOrLog(final EmailDestinationModel destination) {
+  // El nombre describe el comportamiento: envia el correo y registra un log en fallos.
+  private void sendEmailAndLogFailure(final EmailDestinationModel destination) {
     try {
       emailSenderPort.send(destination);
     } catch (final EmailSenderException senderException) {
