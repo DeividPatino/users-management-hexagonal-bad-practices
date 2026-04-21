@@ -11,7 +11,6 @@ import com.jcaa.usersmanagement.domain.valueobject.UserEmail;
 import com.jcaa.usersmanagement.domain.valueobject.UserId;
 import com.jcaa.usersmanagement.domain.valueobject.UserName;
 import com.jcaa.usersmanagement.domain.valueobject.UserPassword;
-import java.util.Objects;
 
 public class UserApplicationMapper {
 
@@ -78,9 +77,6 @@ public class UserApplicationMapper {
   //   - El llamador DEBE recordar qué valor representa cada caso — frágil y opaco.
   // Solución: lanzar IllegalArgumentException o usar Optional<Integer> con semántica clara.
   public static int roleToCode(final String role) {
-    if (Objects.isNull(role) || role.isBlank()) {
-      return -1;
-    }
     if ("ADMIN".equalsIgnoreCase(role)) {
       return 1;
     } else if ("MEMBER".equalsIgnoreCase(role)) {
@@ -88,6 +84,6 @@ public class UserApplicationMapper {
     } else if ("REVIEWER".equalsIgnoreCase(role)) {
       return 3;
     }
-    return -1;
+    throw new IllegalArgumentException("Rol invalido: " + role);
   }
 }
