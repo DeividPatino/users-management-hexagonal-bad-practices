@@ -81,7 +81,7 @@ public UserResponse createUser(final CreateUserRequest request) {
 **Evidencia (Antes)**
 
 ```java
-// En UserApplicationMapper.java (antes del refactor)
+
 public static int roleToCode(final String role) {
     if (Objects.isNull(role) || role.isBlank()) {
       return -1;
@@ -124,18 +124,59 @@ public static int roleToCode(final String role) {
 **Evidencia (Antes)**
 
 ```java
-// En UserApplicationMapper.java (antes del refactor)
 
-// En el método fromCreateCommandToModel:
 final String correo = command.email();
 
-// En el método fromUpdateCommandToModel:
 final String correoElectronico = command.email();
 ```
 
 **Solucion propuesta**
 
 -   **Cambio recomendado**: Se estandarizó el nombre de la variable a `userEmail` en ambos métodos para mantener la consistencia semántica en toda la clase.
+-   **Capa responsable del cambio**: `application`.
+
+**Estado**
+
+-   Resuelto
+
+### Violación 4: Duplicación de Lógica y Código Sobre-compactado
+
+**Ubicacion del codigo**
+
+-   `src/main/java/com/jcaa/usersmanagement/application/service/EmailNotificationService.java`
+
+**Resumen del problema**
+
+-   Los métodos `notifyUserCreated` y `notifyUserUpdated` contenían lógica de orquestación casi idéntica (cargar plantilla, renderizar, construir destinatario, enviar). Además, esta lógica estaba comprimida en una única línea de código anidada, haciéndola extremadamente difícil de leer y depurar.
+
+**Impacto**
+
+-   **Violación del principio DRY (Don't Repeat Yourself)**: Cualquier cambio en el flujo de notificación debía ser replicado en ambos métodos, aumentando el riesgo de inconsistencias.
+-   **Baja legibilidad y mantenibilidad**: El código era ininteligible a simple vista, ocultando la secuencia de pasos real. Depurar un fallo en la cadena de llamadas era muy complicado.
+-   **Mezcla de niveles de abstracción**: Se combinaba la intención de alto nivel ("notificar") con detalles de bajo nivel (manipulación de strings, carga de archivos) en una sola expresión.
+
+**Evidencia (Antes)**
+
+```java
+// En EmailNotificationService.java (antes del refactor)
+public void notifyUserCreated(final UserModel user, final String plainPassword) {
+    sendOrLog(buildDestination(user, SUBJECT_CREATED,
+      renderTemplate(emailTemplatePort.loadTemplate("user-created.html"),
+            Map.of(TOKEN_NAME, user.getName().value(), TOKEN_EMAIL, user.getEmail().value(),
+                TOKEN_PASSWORD, plainPassword, TOKEN_ROLE, user.getRole().name()))));
+}
+
+public void notifyUserUpdated(final UserModel user) {
+    sendOrLog(buildDestination(user, SUBJECT_UPDATED,
+      renderTemplate(emailTemplatePort.loadTemplate("user-updated.html"),
+            Map.of(TOKEN_NAME, user.getName().value(), TOKEN_EMAIL, user.getEmail().value(),
+                TOKEN_ROLE, user.getRole().name(), TOKEN_STATUS, user.getStatus().name()))));
+}
+```
+
+**Solucion propuesta**
+
+-   **Cambio recomendado**: Se extrajo la lógica común a dos métodos privados: `baseTokens` (para crear el mapa de valores base) y `notifyUser` (para orquestar la carga, renderizado y envío). Los métodos públicos ahora solo preparan los datos específicos y llaman al orquestador, resultando en un código limpio, legible y sin duplicación.
 -   **Capa responsable del cambio**: `application`.
 
 **Estado**
