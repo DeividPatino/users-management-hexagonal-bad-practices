@@ -22,14 +22,14 @@ public class UserApplicationMapper {
     // pero "correoElectronico" en fromUpdateCommandToModel, dentro de la MISMA clase.
     // La regla dice: las mismas ideas deben nombrarse igual en todo el proyecto.
     // No usar varios nombres para el mismo concepto sin justificación.
-    final String correo    = command.email();
+    final String userEmail = command.email();
     final String userPass  = command.password();
     final String userRole  = command.role();
 
     return UserModel.create(
         new UserId(userId),
         new UserName(userName),
-        new UserEmail(correo),
+        new UserEmail(userEmail),
         UserPassword.fromPlainText(userPass),
         UserRole.fromString(userRole));
   }
@@ -46,7 +46,7 @@ public class UserApplicationMapper {
 
     // Clean Code - Regla 24: mismo concepto que "correo" de arriba, pero renombrado
     // sin razón a "correoElectronico". El lector no puede saber si son conceptos distintos.
-    final String correoElectronico = command.email();
+    final String userEmail = command.email();
 
     // EFECTO CASCADA de la Regla 15 en UserModel:
     // Al usar @Data en vez de @Value, el modelo es mutable. El siguiente llamador
@@ -55,7 +55,7 @@ public class UserApplicationMapper {
     return new UserModel(
         new UserId(command.id()),
         new UserName(command.name()),
-        new UserEmail(correoElectronico),
+        new UserEmail(userEmail),
         passwordToUse,
         UserRole.fromString(command.role()),
         UserStatus.fromString(command.status()));
