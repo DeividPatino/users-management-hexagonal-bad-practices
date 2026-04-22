@@ -4,8 +4,7 @@ import com.jcaa.usersmanagement.infrastructure.config.DependencyContainer;
 import com.jcaa.usersmanagement.infrastructure.entrypoint.desktop.cli.UserManagementCli;
 import com.jcaa.usersmanagement.infrastructure.entrypoint.desktop.cli.io.ConsoleIO;
 import java.util.Scanner;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.logging.Logger;
 
 // Clean Code - Regla 24 (consistencia semántica):
 // Todo el proyecto usa java.util.logging.Logger (vía @Log de Lombok o Logger.getLogger()),
@@ -21,7 +20,7 @@ import org.slf4j.LoggerFactory;
 // de la aplicación. No hay ninguna abstracción que proteja este acoplamiento.
 public final class Main {
 
-  private static final Logger log = LoggerFactory.getLogger(Main.class);
+  private static final Logger log = Logger.getLogger(Main.class.getName());
 
   // Clean Code - Regla 1 (una sola cosa por función):
   // main() hace demasiadas cosas en un solo método:
@@ -33,9 +32,21 @@ public final class Main {
   //   buildContainer(), buildConsole(), buildCli(), run().
   public static void main(final String[] args) {
     log.info("Starting Users Management System...");
-    final DependencyContainer container = new DependencyContainer();
+    runCli(buildContainer());
+  }
+
+  private static DependencyContainer buildContainer() {
+    return new DependencyContainer();
+  }
+
+  private static ConsoleIO buildConsole(final Scanner scanner) {
+    return new ConsoleIO(scanner, System.out);
+  }
+
+  private static void runCli(final DependencyContainer container) {
     try (final Scanner scanner = new Scanner(System.in)) {
-      new UserManagementCli(container.userController(), new ConsoleIO(scanner, System.out)).start();
+      final ConsoleIO consoleIO = buildConsole(scanner);
+      new UserManagementCli(container.userController(), consoleIO).start();
     }
   }
 }

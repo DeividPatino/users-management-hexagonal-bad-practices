@@ -359,4 +359,61 @@ private void notifyIfRequired(final UserModel user, final boolean notify) {
 
 -   Resuelto
 
+### Violación 9: Condición Booleana Compleja, Ineficiente y Redundante
+
+**Ubicacion del codigo**
+
+-   `src/main/java/com/jcaa/usersmanagement/application/service/UpdateUserService.java`
+
+**Resumen del problema**
+
+-   El método `ensureEmailIsNotTakenByAnotherUser` contenía una única y extensa condición `if` para validar si un email ya estaba en uso por otro usuario.
+
+**Impacto**
+
+-   **Ilegibilidad**: La lógica era extremadamente difícil de seguir, mezclando múltiples `&&` y `||` sin una estructura clara.
+-   **Ineficiencia grave**: La expresión `getUserByEmailPort.getByEmail(newEmail)` se ejecutaba hasta **cuatro veces** para una sola validación, resultando en múltiples e innecesarias llamadas a la base de datos.
+-   **Lógica redundante y propensa a errores**: La condición contenía partes que parecían repetirse, aumentando el riesgo de errores lógicos y dificultando el mantenimiento.
+
+**Evidencia (Antes)**
+
+```java
+// En UpdateUserService.java (antes del refactor)
+private void ensureEmailIsNotTakenByAnotherUser(final UserEmail newEmail, final UserId ownerId) {
+    if (getUserByEmailPort.getByEmail(newEmail).isPresent()
+        && !getUserByEmailPort.getByEmail(newEmail).get().getId().equals(ownerId)
+        && !getUserByEmailPort.getByEmail(newEmail).get().getEmail().value().equals(newEmail.value())
+            || (getUserByEmailPort.getByEmail(newEmail).isPresent()
+                && !getUserByEmailPort.getByEmail(newEmail).get().getId().value().equals(ownerId.value()))) {
+      throw UserAlreadyExistsException.becauseEmailAlreadyExists(newEmail.value());
+    }
+}
+```
+
+**Solucion propuesta**
+
+-   **Cambio recomendado**: Se refactorizó la lógica para realizar una **única consulta** a la base de datos. Se utiliza la API de `Optional` para encadenar la lógica de forma fluida y legible:
+    1.  Se busca el usuario por email.
+    2.  Se filtra el resultado para quedarse solo si el ID del usuario encontrado es **diferente** al del usuario que se está actualizando.
+    3.  Si después del filtro todavía existe un usuario, se lanza la excepción.
+-   **Capa responsable del cambio**: `application`.
+
+**Evidencia (Después)**
+
+```java
+// En UpdateUserService.java (después del refactor)
+private void ensureEmailIsNotTakenByAnotherUser(final UserEmail newEmail, final UserId ownerId) {
+    getUserByEmailPort
+        .getByEmail(newEmail)
+        .filter(existing -> !existing.getId().equals(ownerId))
+        .ifPresent(existing -> {
+          throw UserAlreadyExistsException.becauseEmailAlreadyExists(newEmail.value());
+        });
+}
+```
+
+**Estado**
+
+-   Resuelto
+
 ---
