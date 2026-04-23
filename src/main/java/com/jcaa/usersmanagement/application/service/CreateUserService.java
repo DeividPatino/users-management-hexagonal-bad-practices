@@ -1,11 +1,9 @@
 package com.jcaa.usersmanagement.application.service;
 
 import com.jcaa.usersmanagement.application.port.in.CreateUserUseCase;
-import com.jcaa.usersmanagement.application.port.out.GetUserByEmailPort;
 import com.jcaa.usersmanagement.application.port.out.SaveUserPort;
 import com.jcaa.usersmanagement.application.service.dto.command.CreateUserCommand;
 import com.jcaa.usersmanagement.application.service.mapper.UserApplicationMapper;
-import com.jcaa.usersmanagement.domain.exception.UserAlreadyExistsException;
 import com.jcaa.usersmanagement.domain.model.UserModel;
 import com.jcaa.usersmanagement.domain.valueobject.UserEmail;
 import jakarta.validation.ConstraintViolation;
@@ -21,8 +19,8 @@ import java.util.Set;
 public final class CreateUserService implements CreateUserUseCase {
 
   private final SaveUserPort saveUserPort;
-  private final GetUserByEmailPort getUserByEmailPort;
   private final EmailNotificationService emailNotificationService;
+  private final UserEmailUniquenessChecker userEmailUniquenessChecker;
   private final Validator validator;
 
   @Override
@@ -51,8 +49,6 @@ public final class CreateUserService implements CreateUserUseCase {
 
   private void ensureEmailNotExists(final CreateUserCommand command) {
     final UserEmail email = new UserEmail(command.email());
-    if (getUserByEmailPort.getByEmail(email).isPresent()) {
-      throw UserAlreadyExistsException.becauseEmailAlreadyExists(email.value());
-    }
+    userEmailUniquenessChecker.ensureEmailNotExists(email);
   }
 }

@@ -1,12 +1,10 @@
 package com.jcaa.usersmanagement.application.service;
 
 import com.jcaa.usersmanagement.application.port.in.UpdateUserUseCase;
-import com.jcaa.usersmanagement.application.port.out.GetUserByEmailPort;
 import com.jcaa.usersmanagement.application.port.out.GetUserByIdPort;
 import com.jcaa.usersmanagement.application.port.out.UpdateUserPort;
 import com.jcaa.usersmanagement.application.service.dto.command.UpdateUserCommand;
 import com.jcaa.usersmanagement.application.service.mapper.UserApplicationMapper;
-import com.jcaa.usersmanagement.domain.exception.UserAlreadyExistsException;
 import com.jcaa.usersmanagement.domain.exception.UserNotFoundException;
 import com.jcaa.usersmanagement.domain.model.UserModel;
 import com.jcaa.usersmanagement.domain.valueobject.UserEmail;
@@ -25,8 +23,8 @@ public final class UpdateUserService implements UpdateUserUseCase {
 
   private final UpdateUserPort updateUserPort;
   private final GetUserByIdPort getUserByIdPort;
-  private final GetUserByEmailPort getUserByEmailPort;
   private final EmailNotificationService emailNotificationService;
+  private final UserEmailUniquenessChecker userEmailUniquenessChecker;
   private final Validator validator;
 
   @Override
@@ -75,11 +73,6 @@ public final class UpdateUserService implements UpdateUserUseCase {
   }
 
   private void ensureEmailIsNotTakenByAnotherUser(final UserEmail newEmail, final UserId ownerId) {
-    getUserByEmailPort
-        .getByEmail(newEmail)
-        .filter(existing -> !existing.getId().equals(ownerId))
-        .ifPresent(existing -> {
-          throw UserAlreadyExistsException.becauseEmailAlreadyExists(newEmail.value());
-        });
+    userEmailUniquenessChecker.ensureEmailIsNotTakenByAnotherUser(newEmail, ownerId);
   }
 }

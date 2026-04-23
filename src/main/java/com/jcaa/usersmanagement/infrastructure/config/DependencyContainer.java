@@ -13,6 +13,7 @@ import com.jcaa.usersmanagement.application.service.GetAllUsersService;
 import com.jcaa.usersmanagement.application.service.GetUserByIdService;
 import com.jcaa.usersmanagement.application.service.LoginService;
 import com.jcaa.usersmanagement.application.service.UpdateUserService;
+import com.jcaa.usersmanagement.application.service.UserEmailUniquenessChecker;
 import com.jcaa.usersmanagement.infrastructure.adapter.email.ClasspathEmailTemplateAdapter;
 import com.jcaa.usersmanagement.infrastructure.adapter.email.JavaMailEmailSenderAdapter;
 import com.jcaa.usersmanagement.infrastructure.adapter.email.SmtpConfig;
@@ -57,10 +58,22 @@ public final class DependencyContainer {
     // Construir Validator para las validaciones en la capa de aplicación
     final Validator validator = ValidatorProvider.buildValidator();
 
+    final UserEmailUniquenessChecker emailUniquenessChecker =
+      new UserEmailUniquenessChecker(userRepository);
+
     final CreateUserUseCase createUserUseCase =
-        new CreateUserService(userRepository, userRepository, emailNotification, validator);
+      new CreateUserService(
+        userRepository,
+        emailNotification,
+        emailUniquenessChecker,
+        validator);
     final UpdateUserUseCase updateUserUseCase =
-        new UpdateUserService(userRepository, userRepository, userRepository, emailNotification, validator);
+      new UpdateUserService(
+        userRepository,
+        userRepository,
+        emailNotification,
+        emailUniquenessChecker,
+        validator);
     final DeleteUserUseCase deleteUserUseCase =
         new DeleteUserService(userRepository, userRepository, validator);
     final GetUserByIdUseCase getUserByIdUseCase = new GetUserByIdService(userRepository, validator);

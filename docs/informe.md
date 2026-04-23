@@ -599,4 +599,86 @@ private void ensureUserIsActive(final UserModel user) {
 
 -   Resuelto
 
+### Violación 13: Duplicación de Lógica de Negocio (Validación de Email)
+
+**Ubicacion del codigo**
+
+-   `src/main/java/com/jcaa/usersmanagement/application/service/CreateUserService.java`
+-   `src/main/java/com/jcaa/usersmanagement/application/service/UpdateUserService.java`
+
+**Resumen del problema**
+
+-   La responsabilidad de negocio de "garantizar que un email sea único" estaba duplicada en dos servicios distintos. `CreateUserService` tenía su propia lógica para verificar la existencia de un email, y `UpdateUserService` tenía una lógica similar pero ligeramente diferente para el mismo propósito. Esto violaba el principio **DRY (Don't Repeat Yourself)**.
+
+**Impacto**
+
+-   **Mantenimiento propenso a errores**: Si la regla de negocio para la unicidad del email cambiara (por ejemplo, volverse insensible a mayúsculas), habría que recordar aplicarla en dos lugares diferentes, aumentando la probabilidad de introducir inconsistencias.
+-   **Baja cohesión**: La lógica de una regla de negocio específica estaba dispersa en lugar de estar centralizada, dificultando su localización y comprensión.
+
+**Evidencia (Antes)**
+
+```java
+// En CreateUserService.java
+private void ensureEmailNotExists(final CreateUserCommand command) {
+    final UserEmail email = new UserEmail(command.email());
+    if (getUserByEmailPort.getByEmail(email).isPresent()) {
+        throw UserAlreadyExistsException.becauseEmailAlreadyExists(email.value());
+    }
+}
+
+// En UpdateUserService.java
+private void ensureEmailIsNotTakenByAnotherUser(final UserEmail newEmail, final UserId ownerId) {
+    getUserByEmailPort
+        .getByEmail(newEmail)
+        .filter(existing -> !existing.getId().equals(ownerId))
+        .ifPresent(existing -> {
+            throw UserAlreadyExistsException.becauseEmailAlreadyExists(newEmail.value());
+        });
+}
+```
+
+**Solucion propuesta**
+
+-   **Cambio recomendado**:
+    1.  Se creó una nueva clase de servicio, `UserEmailUniquenessChecker`, con la única responsabilidad de manejar la lógica de validación de unicidad de email.
+    2.  Esta nueva clase contiene ambos métodos (`ensureEmailNotExists` y `ensureEmailIsNotTakenByAnotherUser`), centralizando la regla de negocio.
+    3.  Tanto `CreateUserService` como `UpdateUserService` ahora delegan la validación a una instancia de `UserEmailUniquenessChecker`, eliminando el código duplicado.
+-   **Capa responsable del cambio**: `application`.
+
+**Evidencia (Después)**
+
+```java
+// En la nueva clase UserEmailUniquenessChecker.java
+@RequiredArgsConstructor
+public final class UserEmailUniquenessChecker {
+
+  private final GetUserByEmailPort getUserByEmailPort;
+
+  public void ensureEmailNotExists(final UserEmail email) {
+    if (getUserByEmailPort.getByEmail(email).isPresent()) {
+      throw UserAlreadyExistsException.becauseEmailAlreadyExists(email.value());
+    }
+  }
+
+  public void ensureEmailIsNotTakenByAnotherUser(final UserEmail newEmail, final UserId ownerId) {
+    getUserByEmailPort
+        .getByEmail(newEmail)
+        .filter(existing -> !existing.getId().equals(ownerId))
+        .ifPresent(existing -> {
+          throw UserAlreadyExistsException.becauseEmailAlreadyExists(newEmail.value());
+        });
+  }
+}
+
+// En CreateUserService.java (ahora delega)
+private void ensureEmailNotExists(final CreateUserCommand command) {
+    final UserEmail email = new UserEmail(command.email());
+    userEmailUniquenessChecker.ensureEmailNotExists(email);
+}
+```
+
+**Estado**
+
+-   Resuelto
+
 ---
