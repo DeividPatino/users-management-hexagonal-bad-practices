@@ -675,6 +675,11 @@ private void ensureEmailNotExists(final CreateUserCommand command) {
     final UserEmail email = new UserEmail(command.email());
     userEmailUniquenessChecker.ensureEmailNotExists(email);
 }
+
+// En UpdateUserService.java (ahora delega)
+private void ensureEmailIsNotTakenByAnotherUser(final UserEmail newEmail, final UserId ownerId) {
+    userEmailUniquenessChecker.ensureEmailIsNotTakenByAnotherUser(newEmail, ownerId);
+}
 ```
 
 **Estado**

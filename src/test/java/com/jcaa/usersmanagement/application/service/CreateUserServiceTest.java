@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-import com.jcaa.usersmanagement.application.port.out.GetUserByEmailPort;
 import com.jcaa.usersmanagement.application.port.out.SaveUserPort;
 import com.jcaa.usersmanagement.application.service.dto.command.CreateUserCommand;
 import com.jcaa.usersmanagement.domain.enums.UserRole;
@@ -18,7 +17,6 @@ import com.jcaa.usersmanagement.domain.valueobject.UserPassword;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Validation;
 import jakarta.validation.ValidatorFactory;
-import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,8 +29,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class CreateUserServiceTest {
 
   @Mock private SaveUserPort saveUserPort;
-  @Mock private GetUserByEmailPort getUserByEmailPort;
   @Mock private EmailNotificationService emailNotificationService;
+  @Mock private UserEmailUniquenessChecker userEmailUniquenessChecker;
 
   private CreateUserService service;
 
@@ -42,8 +40,8 @@ class CreateUserServiceTest {
       service =
           new CreateUserService(
               saveUserPort,
-              getUserByEmailPort,
               emailNotificationService,
+            userEmailUniquenessChecker,
               validatorFactory.getValidator());
     }
   }
@@ -62,7 +60,6 @@ class CreateUserServiceTest {
             UserPassword.fromPlainText("Pass1234"),
             UserRole.ADMIN,
             UserStatus.PENDING);
-    when(getUserByEmailPort.getByEmail(any())).thenReturn(Optional.empty());
     when(saveUserPort.save(any())).thenReturn(savedUser);
     final UserModel result = service.execute(command);
     // VIOLACIÓN Regla 11: se usa assertTrue(x != null) en lugar de assertNotNull(x).
@@ -86,7 +83,9 @@ class CreateUserServiceTest {
             UserPassword.fromPlainText("OtraPass1"),
             UserRole.MEMBER,
             UserStatus.ACTIVE);
-    when(getUserByEmailPort.getByEmail(any())).thenReturn(Optional.of(existing));
+    doThrow(UserAlreadyExistsException.becauseEmailAlreadyExists("jane@example.com"))
+      .when(userEmailUniquenessChecker)
+      .ensureEmailNotExists(any(UserEmail.class));
     assertThrows(UserAlreadyExistsException.class, () -> service.execute(command));
     verify(saveUserPort, never()).save(any());
     verify(emailNotificationService, never()).notifyUserCreated(any(), any());
@@ -97,6 +96,6 @@ class CreateUserServiceTest {
     final CreateUserCommand command =
         new CreateUserCommand("", "Jo", "not-an-email", "short", "ADMIN");
     assertThrows(ConstraintViolationException.class, () -> service.execute(command));
-    verifyNoInteractions(saveUserPort, getUserByEmailPort, emailNotificationService);
+    verifyNoInteractions(saveUserPort, emailNotificationService, userEmailUniquenessChecker);
   }
 }

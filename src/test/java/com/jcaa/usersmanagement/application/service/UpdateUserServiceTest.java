@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-import com.jcaa.usersmanagement.application.port.out.GetUserByEmailPort;
 import com.jcaa.usersmanagement.application.port.out.GetUserByIdPort;
 import com.jcaa.usersmanagement.application.port.out.UpdateUserPort;
 import com.jcaa.usersmanagement.application.service.dto.command.UpdateUserCommand;
@@ -40,8 +39,8 @@ class UpdateUserServiceTest {
 
   @Mock private UpdateUserPort updateUserPort;
   @Mock private GetUserByIdPort getUserByIdPort;
-  @Mock private GetUserByEmailPort getUserByEmailPort;
   @Mock private EmailNotificationService emailNotificationService;
+  @Mock private UserEmailUniquenessChecker userEmailUniquenessChecker;
 
   private UpdateUserService service;
 
@@ -58,8 +57,8 @@ class UpdateUserServiceTest {
           new UpdateUserService(
               updateUserPort,
               getUserByIdPort,
-              getUserByEmailPort,
               emailNotificationService,
+            userEmailUniquenessChecker,
               validatorFactory.getValidator());
     }
 
@@ -82,7 +81,6 @@ class UpdateUserServiceTest {
     final UpdateUserCommand command =
         new UpdateUserCommand(ID, "John Updated", EMAIL, null, "ADMIN", "ACTIVE");
     when(getUserByIdPort.getById(any())).thenReturn(Optional.of(existingUser));
-    when(getUserByEmailPort.getByEmail(any())).thenReturn(Optional.of(existingUser));
     when(updateUserPort.update(any())).thenReturn(existingUser);
     service.execute(command);
     verify(updateUserPort).update(any(UserModel.class));
@@ -122,7 +120,9 @@ class UpdateUserServiceTest {
             UserStatus.ACTIVE);
 
     when(getUserByIdPort.getById(any())).thenReturn(Optional.of(existingUser));
-    when(getUserByEmailPort.getByEmail(any())).thenReturn(Optional.of(otherUser));
+    doThrow(UserAlreadyExistsException.becauseEmailAlreadyExists("other@example.com"))
+      .when(userEmailUniquenessChecker)
+      .ensureEmailIsNotTakenByAnotherUser(any(UserEmail.class), any(UserId.class));
 
     // Act & Assert
     assertThrows(UserAlreadyExistsException.class, () -> service.execute(command));
@@ -139,7 +139,6 @@ class UpdateUserServiceTest {
         new UpdateUserCommand(ID, "John Updated", EMAIL, null, "ADMIN", "ACTIVE");
 
     when(getUserByIdPort.getById(any())).thenReturn(Optional.of(existingUser));
-    when(getUserByEmailPort.getByEmail(any())).thenReturn(Optional.of(existingUser));
     when(updateUserPort.update(any())).thenReturn(existingUser);
 
     // Act & Assert
@@ -159,6 +158,6 @@ class UpdateUserServiceTest {
 
     // Act & Assert
     assertThrows(ConstraintViolationException.class, () -> service.execute(command));
-    verifyNoInteractions(updateUserPort, getUserByIdPort, getUserByEmailPort);
+    verifyNoInteractions(updateUserPort, getUserByIdPort, userEmailUniquenessChecker);
   }
 }
