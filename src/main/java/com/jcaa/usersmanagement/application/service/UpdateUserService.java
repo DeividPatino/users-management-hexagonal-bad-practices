@@ -30,7 +30,7 @@ public final class UpdateUserService implements UpdateUserUseCase {
   private final Validator validator;
 
   @Override
-  public UserModel execute(final UpdateUserCommand command) {
+  public void execute(final UpdateUserCommand command) {
     // Clean Code - Regla 8 (separar comandos y consultas — CQS):
     // Este método MODIFICA estado (actualiza el usuario en base de datos)
     // Y TAMBIÉN RETORNA el usuario actualizado (consulta).
@@ -51,8 +51,6 @@ public final class UpdateUserService implements UpdateUserUseCase {
     final UserModel updatedUser = updateUserPort.update(userToUpdate);
 
     notifyUserUpdated(updatedUser);
-
-    return updatedUser;
   }
 
   private void notifyUserUpdated(final UserModel user) {

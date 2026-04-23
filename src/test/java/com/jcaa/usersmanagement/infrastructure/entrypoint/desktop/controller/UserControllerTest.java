@@ -257,7 +257,8 @@ class UserControllerTest {
         buildUser("u-005", "Eve Martinez", "eve@example.com", UserRole.ADMIN, UserStatus.ACTIVE);
     final ArgumentCaptor<UpdateUserCommand> captor =
         ArgumentCaptor.forClass(UpdateUserCommand.class);
-    when(updateUserUseCase.execute(captor.capture())).thenReturn(updatedUser);
+    doNothing().when(updateUserUseCase).execute(captor.capture());
+    when(getUserByIdUseCase.execute(any(GetUserByIdQuery.class))).thenReturn(updatedUser);
 
     // Act
     final UserResponse result = controller.updateUser(request);
@@ -302,8 +303,9 @@ class UserControllerTest {
     final UpdateUserRequest request =
         new UpdateUserRequest(
             "u-999", "Ghost User", "ghost@example.com", "Pass9999!", "MEMBER", "INACTIVE");
-    when(updateUserUseCase.execute(any()))
-        .thenThrow(UserNotFoundException.becauseIdWasNotFound("u-999"));
+    doThrow(UserNotFoundException.becauseIdWasNotFound("u-999"))
+        .when(updateUserUseCase)
+        .execute(any());
 
     // Act & Assert
     assertThrows(

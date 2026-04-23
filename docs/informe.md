@@ -416,4 +416,104 @@ private void ensureEmailIsNotTakenByAnotherUser(final UserEmail newEmail, final 
 
 -   Resuelto
 
+### Violación 10: Múltiples Responsabilidades, Inconsistencia y Acoplamiento en `Main`
+
+**Ubicacion del codigo**
+
+-   `src/main/java/com/jcaa/usersmanagement/Main.java`
+
+**Resumen del problema**
+
+-   La clase `Main` presentaba un cúmulo de malas prácticas de Clean Code:
+    1.  **Múltiples Responsabilidades**: El método `main` se encargaba de construir el contenedor de dependencias, la I/O de la consola, instanciar la CLI y arrancar la aplicación, violando el Principio de Responsabilidad Única.
+    2.  **Inconsistencia de Frameworks**: Utilizaba `org.slf4j.Logger` mientras que el resto del proyecto usaba `java.util.logging.Logger`, creando una inconsistencia innecesaria.
+    3.  **Acoplamiento a Clases Concretas**: Estaba directamente acoplado a las implementaciones `DependencyContainer`, `UserManagementCli` y `ConsoleIO`, lo que hacía el punto de entrada de la aplicación rígido y difícil de modificar.
+
+**Impacto**
+
+-   **Baja cohesión y alta complejidad**: El método `main` era difícil de leer al mezclar la orquestación de alto nivel con la construcción de bajo nivel.
+-   **Mantenimiento confuso**: La inconsistencia en el logging obligaba a los desarrolladores a preguntarse cuál era el estándar del proyecto.
+-   **Rigidez en el diseño**: Cambiar una parte fundamental de la aplicación (como la interfaz de usuario) requería modificar el punto de entrada, lo que es una señal de un diseño poco flexible.
+
+**Evidencia (Antes)**
+
+```java
+// En Main.java (antes del refactor)
+public final class Main {
+  private static final Logger log = LoggerFactory.getLogger(Main.class);
+
+  public static void main(final String[] args) {
+    log.info("Starting Users Management System...");
+    final DependencyContainer container = new DependencyContainer();
+    try (final Scanner scanner = new Scanner(System.in)) {
+      new UserManagementCli(container.userController(), new ConsoleIO(scanner, System.out)).start();
+    }
+  }
+}
+```
+
+**Solucion propuesta**
+
+-   **Cambio recomendado**:
+    1.  Se descompuso el método `main` en varios métodos privados con responsabilidades únicas: `buildContainer()`, `buildConsole()` y `runCli()`. El método `main` ahora solo orquesta estas llamadas.
+    2.  Se cambió el logger a `java.util.logging.Logger` para mantener la consistencia con el resto del proyecto.
+-   **Capa responsable del cambio**: `infrastructure` (punto de entrada).
+
+**Estado**
+
+-   Resuelto
+
+### Violación 11: Violación del Principio de Separación de Comandos y Consultas (CQS)
+
+**Ubicacion del codigo**
+
+-   `src/main/java/com/jcaa/usersmanagement/application/service/UpdateUserService.java`
+-   `src/main/java/com/jcaa/usersmanagement/application/port/in/UpdateUserUseCase.java`
+-   `src/main/java/com/jcaa/usersmanagement/infrastructure/entrypoint/desktop/controller/UserController.java`
+
+**Resumen del problema**
+
+-   El método `execute` del caso de uso `UpdateUserUseCase` violaba el principio de **Separación de Comandos y Consultas (CQS)**. Este método realizaba una acción de escritura (modificar un usuario) y, al mismo tiempo, devolvía datos (el `UserModel` actualizado).
+
+**Impacto**
+
+-   **Efectos secundarios ocultos**: Un método que devuelve un valor da la impresión de ser una consulta segura (una "pregunta"). Sin embargo, en este caso, tenía el efecto secundario de modificar datos en la base de datos, lo que puede causar sorpresas y errores difíciles de rastrear.
+-   **Baja predictibilidad**: El código se vuelve menos predecible. Un desarrollador que lee `UserModel user = service.execute(...)` podría no ser consciente de que esa línea está cambiando el estado del sistema.
+
+**Evidencia (Antes)**
+
+```java
+// En UpdateUserUseCase.java (antes)
+public interface UpdateUserUseCase {
+  UserModel execute(@NotNull @Valid UpdateUserCommand command);
+}
+
+// En UpdateUserService.java (antes)
+@Override
+public UserModel execute(final UpdateUserCommand command) {
+  // ... lógica de actualización ...
+  final UserModel updatedUser = updateUserPort.update(userToUpdate);
+  return updatedUser;
+}
+
+// En UserController.java (antes)
+public UserResponse updateUser(final UpdateUserRequest request) {
+  final var command = UserDesktopMapper.toUpdateCommand(request);
+  final var user = updateUserUseCase.execute(command); // Llama y espera un retorno
+  return UserDesktopMapper.toResponse(user);
+}
+```
+
+**Solucion propuesta**
+
+-   **Cambio recomendado**:
+    1.  Se modificó la interfaz `UpdateUserUseCase` para que el método `execute` devuelva `void`, convirtiéndolo en un comando puro.
+    2.  Se actualizó `UpdateUserService` para que ya no devuelva ningún valor.
+    3.  Se ajustó el `UserController` para que primero ejecute el comando de actualización y luego, si necesita los datos actualizados para la respuesta, realice una consulta explícita por separado usando `getUserByIdUseCase`.
+-   **Capa responsable del cambio**: `application` e `infrastructure`.
+
+**Estado**
+
+-   Resuelto
+
 ---
