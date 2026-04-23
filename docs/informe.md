@@ -516,4 +516,87 @@ public UserResponse updateUser(final UpdateUserRequest request) {
 
 -   Resuelto
 
+### Violación 12: Múltiples Responsabilidades y Violación de la Ley de Demeter
+
+**Ubicacion del codigo**
+
+-   `src/main/java/com/jcaa/usersmanagement/application/service/LoginService.java`
+-   `src/main/java/com/jcaa/usersmanagement/domain/model/UserModel.java`
+
+**Resumen del problema**
+
+-   El servicio `LoginService` presentaba dos problemas de Clean Code interrelacionados:
+    1.  **Múltiples Responsabilidades**: El método `getAndValidateUser` era responsable de encontrar al usuario, validar su contraseña y comprobar si su estado le permitía iniciar sesión. Esto violaba el Principio de Responsabilidad Única (SRP).
+    2.  **Violación de la Ley de Demeter**: Para realizar las validaciones, el servicio accedía directamente a los datos internos del `UserModel` (ej. `user.getPassword().value()`, `user.getStatus()`), en lugar de pedirle al propio modelo que realizara estas operaciones. El servicio sabía *cómo* el usuario validaba su estado, en lugar de solo *pedirle* que lo hiciera.
+
+**Impacto**
+
+-   **Baja Cohesión y Alto Acoplamiento**: El servicio estaba fuertemente acoplado a la estructura interna del `UserModel`. Cualquier cambio en cómo se almacena la contraseña o el estado en `UserModel` rompería el `LoginService`.
+-   **Lógica de Negocio Dispersa**: Las reglas de negocio sobre cómo un usuario puede iniciar sesión estaban en la capa de aplicación, en lugar de estar encapsuladas dentro del propio modelo de dominio (`UserModel`), que es donde pertenecen.
+-   **Baja Legibilidad y Mantenimiento Difícil**: El método `getAndValidateUser` era un bloque monolítico difícil de leer y modificar.
+
+**Evidencia (Antes)**
+
+```java
+// En LoginService.java (antes)
+private UserModel getAndValidateUser(final UserEmail email, final String plainPassword) {
+    final var user =
+        getUserByEmailPort
+            .getByEmail(email)
+            .orElseThrow(InvalidCredentialsException::becauseCredentialsAreInvalid);
+
+    if (!user.getPassword().value().equals(plainPassword)) {
+      throw InvalidCredentialsException.becauseCredentialsAreInvalid();
+    }
+
+    if (!UserStatus.ACTIVE.equals(user.getStatus())) {
+      throw InvalidCredentialsException.becauseUserIsNotActive();
+    }
+    return user;
+}
+```
+
+**Solucion propuesta**
+
+-   **Cambio recomendado**:
+    1.  **Mover la lógica de negocio al Dominio**: Se crearon dos nuevos métodos en `UserModel`: `passwordMatches(String plainPassword)` y `isAllowedToLogin()`. Ahora es el propio usuario quien sabe cómo validar su contraseña y si su estado le permite el acceso.
+    2.  **Refactorizar el Servicio**: Se descompuso el método `getAndValidateUser` en tres métodos privados pequeños y con una única responsabilidad: `findUserOrFail`, `validatePassword` y `ensureUserIsActive`. Estos métodos ahora delegan las validaciones al objeto `UserModel`, respetando la Ley de Demeter.
+-   **Capa responsable del cambio**: `application` y `domain`.
+
+**Evidencia (Después)**
+
+```java
+// En UserModel.java (después)
+public boolean passwordMatches(final String plainPassword) {
+    return this.password.value().equals(plainPassword);
+}
+
+public boolean isAllowedToLogin() {
+    return UserStatus.ACTIVE.equals(this.status);
+}
+
+// En LoginService.java (después)
+private UserModel findUserOrFail(final UserEmail email) {
+    return getUserByEmailPort
+        .getByEmail(email)
+        .orElseThrow(InvalidCredentialsException::becauseCredentialsAreInvalid);
+}
+
+private void validatePassword(final UserModel user, final String plainPassword) {
+    if (!user.passwordMatches(plainPassword)) {
+        throw InvalidCredentialsException.becauseCredentialsAreInvalid();
+    }
+}
+
+private void ensureUserIsActive(final UserModel user) {
+    if (!user.isAllowedToLogin()) {
+        throw InvalidCredentialsException.becauseUserIsNotActive();
+    }
+}
+```
+
+**Estado**
+
+-   Resuelto
+
 ---
